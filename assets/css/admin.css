@@ -1,0 +1,452 @@
+/**
+ * Dopigo Admin Styles
+ */
+
+/* General Admin Styles */
+.dopigo-admin-page {
+    max-width: 1200px;
+}
+
+.dopigo-admin-page .card {
+    padding: 20px;
+    margin-top: 20px;
+}
+
+/* Settings Page */
+.dopigo-settings-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.dopigo-settings-col {
+    flex: 1;
+}
+
+/* Connection Status */
+#dopigo-connection-status {
+    padding: 15px;
+    background: #f9f9f9;
+    border-left: 4px solid #ddd;
+    margin-top: 10px;
+}
+
+#dopigo-connection-status.connected {
+    border-left-color: #46b450;
+    background: #f0f9f3;
+}
+
+#dopigo-connection-status.disconnected {
+    border-left-color: #dc3232;
+    background: #fdf0f0;
+}
+
+#dopigo-test-result {
+    display: inline-block;
+    margin-left: 10px;
+    font-weight: 500;
+}
+
+/* Products Table */
+.dopigo-products-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.dopigo-products-table th,
+.dopigo-products-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.dopigo-products-table th {
+    background: #f9f9f9;
+    font-weight: 600;
+}
+
+.dopigo-products-table tr:hover {
+    background: #f9f9f9;
+}
+
+/* Badge Styles */
+.dopigo-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.dopigo-badge.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.dopigo-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.dopigo-badge.variable {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.dopigo-badge.simple {
+    background: #fff3cd;
+    color: #856404;
+}
+
+/* Import Page */
+#dopigo-products-preview {
+    margin-top: 30px;
+}
+
+#dopigo-products-result {
+    margin-top: 20px;
+}
+
+#dopigo-products-list {
+    margin-top: 15px;
+}
+
+/* Button Styles */
+.dopigo-button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.dopigo-button-primary {
+    background: #2271b1;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dopigo-button-primary:hover {
+    background: #135e96;
+}
+
+.dopigo-button-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Spinner */
+.dopigo-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: dopigo-spin 0.6s linear infinite;
+}
+
+@keyframes dopigo-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Sync Status Page */
+.dopigo-sync-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.dopigo-sync-info-box {
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.dopigo-sync-info-box h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.dopigo-sync-info-box .value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2271b1;
+}
+
+/* Sync History Table */
+.dopigo-sync-history {
+    margin-top: 20px;
+}
+
+.dopigo-sync-history table {
+    width: 100%;
+}
+
+.dopigo-sync-history .status-success {
+    color: #46b450;
+}
+
+.dopigo-sync-history .status-error {
+    color: #dc3232;
+}
+
+.dopigo-sync-history .status-pending {
+    color: #f0a500;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .dopigo-settings-row {
+        flex-direction: column;
+    }
+
+    .dopigo-sync-info {
+        grid-template-columns: 1fr;
+    }
+
+    .dopigo-products-table {
+        font-size: 12px;
+    }
+
+    .dopigo-products-table th,
+    .dopigo-products-table td {
+        padding: 8px;
+    }
+}
+
+/* Loading Overlay */
+.dopigo-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+}
+
+.dopigo-loading-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 4px;
+    text-align: center;
+    max-width: 400px;
+}
+
+.dopigo-loading-content h3 {
+    margin: 0 0 15px 0;
+}
+
+.dopigo-loading-content .progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 15px;
+}
+
+.dopigo-loading-content .progress-bar-fill {
+    height: 100%;
+    background: #2271b1;
+    transition: width 0.3s ease;
+}
+
+/* Notices */
+.dopigo-notice {
+    padding: 12px 15px;
+    margin: 15px 0;
+    border-left: 4px solid;
+    background: #fff;
+}
+
+.dopigo-notice.success {
+    border-left-color: #46b450;
+    background: #f0f9f3;
+}
+
+.dopigo-notice.error {
+    border-left-color: #dc3232;
+    background: #fdf0f0;
+}
+
+.dopigo-notice.warning {
+    border-left-color: #f0a500;
+    background: #fff8e5;
+}
+
+.dopigo-notice.info {
+    border-left-color: #2271b1;
+    background: #f0f6fc;
+}
+
+/* Help Text */
+.dopigo-help-text {
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+/* Form Fields */
+.dopigo-form-field {
+    margin-bottom: 20px;
+}
+
+.dopigo-form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.dopigo-form-field input[type="text"],
+.dopigo-form-field input[type="password"],
+.dopigo-form-field textarea,
+.dopigo-form-field select {
+    width: 100%;
+    max-width: 500px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.dopigo-form-field textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* Checkbox */
+.dopigo-form-field input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+/* Product Select Checkbox */
+.dopigo-product-select {
+    cursor: pointer;
+    transform: scale(1.2);
+}
+
+/* Select All Checkbox */
+#select-all-products {
+    cursor: pointer;
+    transform: scale(1.2);
+}
+
+/* WordPress Table Overrides */
+.wp-list-table.dopigo-table th {
+    font-weight: 600;
+    background: #f9f9f9;
+}
+
+.wp-list-table.dopigo-table td {
+    vertical-align: middle;
+}
+
+/* Action Buttons in Table */
+.dopigo-table-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.dopigo-table-actions .button {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* Status Indicators */
+.dopigo-status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.dopigo-status-dot.online {
+    background: #46b450;
+}
+
+.dopigo-status-dot.offline {
+    background: #dc3232;
+}
+
+.dopigo-status-dot.syncing {
+    background: #f0a500;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Category Mapping Section */
+.dopigo-category-mapping {
+    margin-top: 20px;
+}
+
+.dopigo-category-mapping-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.dopigo-category-mapping-row select {
+    flex: 1;
+    max-width: 300px;
+}
+
+.dopigo-category-mapping-row .button {
+    flex-shrink: 0;
+}
+
+/* Empty State */
+.dopigo-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.dopigo-empty-state .dashicons {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.dopigo-empty-state h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.dopigo-empty-state p {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
