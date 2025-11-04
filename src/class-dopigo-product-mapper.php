@@ -413,19 +413,23 @@ class Dopigo_Product_Mapper {
 
         // Validate URL
         if ( empty( $image_url ) || ! filter_var( $image_url, FILTER_VALIDATE_URL ) ) {
-            ( 'Dopigo: Invalid image URL: ' . $image_url );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Dopigo: Invalid image URL: ' . $image_url );
+            }
             return false;
         }
 
         $tmp = download_url( $image_url );
 
         if ( is_wp_error( $tmp ) ) {
-            ( 'Dopigo: Error downloading image from ' . $image_url . ': ' . $tmp->get_error_message() );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Dopigo: Error downloading image from ' . $image_url . ': ' . $tmp->get_error_message() );
+            }
             return false;
         }
 
         // Create a more descriptive filename
-        $sku = isset( $dopigo_variant['sku'] ) ? sanitize_file_name( $dopigo_variant['sku'] ) : 'no-sku';
+        $sku = isset( $product_data['sku'] ) ? sanitize_file_name( $product_data['sku'] ) : 'no-sku';
         $filename = 'dopigo-' . $sku . '-' . time() . '-' . basename( parse_url( $image_url, PHP_URL_PATH ) );
 
         $file_array = array(
@@ -436,7 +440,9 @@ class Dopigo_Product_Mapper {
         $id = media_handle_sideload( $file_array, 0 );
 
         if ( is_wp_error( $id ) ) {
-            ( 'Dopigo: Error uploading image ' . $image_url . ': ' . $id->get_error_message() );
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( 'Dopigo: Error uploading image ' . $image_url . ': ' . $id->get_error_message() );
+            }
             @unlink( $file_array['tmp_name'] );
             return false;
         }
@@ -678,7 +684,7 @@ class Dopigo_Product_Mapper {
         $debug = defined( 'WP_DEBUG' ) && WP_DEBUG;
         
         if ( $debug ) {
-            ( sprintf( 'Dopigo Mapper: Starting batch import of %d products...', $total_count ) );
+            error_log( sprintf( 'Dopigo Mapper: Starting batch import of %d products...', $total_count ) );
         }
         
         // Initialize progress tracking
@@ -737,7 +743,7 @@ class Dopigo_Product_Mapper {
                 }
                 
                 if ( $debug && ( $product_num % 10 === 0 || $product_num === 1 ) ) {
-                    ( sprintf( 'Dopigo Mapper: Processing product %d/%d (meta_id: %s)', 
+                    error_log( sprintf( 'Dopigo Mapper: Processing product %d/%d (meta_id: %s)', 
                         $product_num, 
                         $total_count, 
                         $dopigo_product['meta_id'] 
@@ -757,7 +763,7 @@ class Dopigo_Product_Mapper {
                         $existing_product = wc_get_product( $trashed_id );
                         
                         if ( $debug ) {
-                            ( sprintf( 'Dopigo Mapper: Restored product from trash (meta_id: %s, WC ID: %d)', 
+                            error_log( sprintf( 'Dopigo Mapper: Restored product from trash (meta_id: %s, WC ID: %d)', 
                                 $dopigo_product['meta_id'], 
                                 $trashed_id 
                             ) );
@@ -767,14 +773,14 @@ class Dopigo_Product_Mapper {
                 
                 if ( $existing_product ) {
                     if ( $debug && $product_num <= 5 ) {
-                        ( sprintf( 'Dopigo Mapper: Product meta_id %s exists, updating (WC ID: %d)', 
+                        error_log( sprintf( 'Dopigo Mapper: Product meta_id %s exists, updating (WC ID: %d)', 
                             $dopigo_product['meta_id'], 
                             $existing_product->get_id() 
                         ) );
                     }
                 } else {
                     if ( $debug && $product_num <= 5 ) {
-                        ( sprintf( 'Dopigo Mapper: Product meta_id %s not found, creating new', 
+                        error_log( sprintf( 'Dopigo Mapper: Product meta_id %s not found, creating new', 
                             $dopigo_product['meta_id'] 
                         ) );
                     }
@@ -803,7 +809,7 @@ class Dopigo_Product_Mapper {
                 }
                 
                 if ( $debug && $product_num <= 5 ) {
-                    ( sprintf( 'Dopigo Mapper: Successfully imported product meta_id %s (WC ID: %d)', 
+                    error_log( sprintf( 'Dopigo Mapper: Successfully imported product meta_id %s (WC ID: %d)', 
                         $dopigo_product['meta_id'], 
                         $wc_product->get_id() 
                     ) );
@@ -816,10 +822,12 @@ class Dopigo_Product_Mapper {
                     isset( $dopigo_product['meta_id'] ) ? $dopigo_product['meta_id'] : 'unknown',
                     $e->getMessage() 
                 );
-                ( $error_message );
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( $error_message );
+                }
                 
                 if ( $debug ) {
-                    ( 'Dopigo Import Error Stack: ' . $e->getTraceAsString() );
+                    error_log( 'Dopigo Import Error Stack: ' . $e->getTraceAsString() );
                 }
                 
                 // Update recent products with error status
@@ -845,7 +853,7 @@ class Dopigo_Product_Mapper {
         }
         
         if ( $debug ) {
-            ( sprintf( 'Dopigo Mapper: Batch import complete. Success: %d, Errors: %d, Total: %d', 
+            error_log( sprintf( 'Dopigo Mapper: Batch import complete. Success: %d, Errors: %d, Total: %d', 
                 $success_count, 
                 $error_count, 
                 $total_count 

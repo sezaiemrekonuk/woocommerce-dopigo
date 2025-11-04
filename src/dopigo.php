@@ -77,7 +77,9 @@ function get_all_dopigo_products($auth_token = null, $limit = 100, $offset = 0) 
     }
     
     if ( ! $auth_token ) {
-        ( 'Dopigo: No auth token provided' );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Dopigo: No auth token provided' );
+        }
         return false;
     }
     
@@ -96,16 +98,20 @@ function get_all_dopigo_products($auth_token = null, $limit = 100, $offset = 0) 
     
     // Check for errors
     if ( is_wp_error( $response ) ) {
-        ( 'Dopigo API Error: ' . $response->get_error_message() );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Dopigo API Error: ' . $response->get_error_message() );
+        }
         return false;
     }
     
     $response_code = wp_remote_retrieve_response_code( $response );
 
     if ( $response_code !== 200 ) {
-        ( 'Dopigo API Error: HTTP ' . $response_code );
-        $body = wp_remote_retrieve_body( $response );
-        ( 'Dopigo API Response: ' . $body );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Dopigo API Error: HTTP ' . $response_code );
+            $body = wp_remote_retrieve_body( $response );
+            error_log( 'Dopigo API Response: ' . $body );
+        }
         return false;
     }
 
@@ -113,7 +119,9 @@ function get_all_dopigo_products($auth_token = null, $limit = 100, $offset = 0) 
     $products = json_decode($body, true);
     
     if ( ! is_array( $products ) ) {
-        ( 'Dopigo API Error: Invalid JSON response' );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Dopigo API Error: Invalid JSON response' );
+        }
         return false;
     }
     
@@ -136,19 +144,19 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
     $total_count = 0;
     
     if ( $debug ) {
-        ( 'Dopigo: Starting paginated fetch...' );
+        error_log( 'Dopigo: Starting paginated fetch...' );
     }
     
     while ( $has_more ) {
         if ( $debug ) {
-            ( sprintf( 'Dopigo: Fetching page %d (offset: %d, limit: %d)', $page, $offset, $limit ) );
+            error_log( sprintf( 'Dopigo: Fetching page %d (offset: %d, limit: %d)', $page, $offset, $limit ) );
         }
         
         $response = get_all_dopigo_products( $auth_token, $limit, $offset );
         
         if ( $response === false ) {
             if ( $debug ) {
-                ( 'Dopigo: Failed to fetch products at offset ' . $offset );
+                error_log( 'Dopigo: Failed to fetch products at offset ' . $offset );
             }
             return false;
         }
@@ -162,12 +170,12 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
             if ( $page === 1 && isset( $response['count'] ) ) {
                 $total_count = intval( $response['count'] );
                 if ( $debug ) {
-                    ( sprintf( 'Dopigo: Total products available: %d', $total_count ) );
+                    error_log( sprintf( 'Dopigo: Total products available: %d', $total_count ) );
                 }
             }
             
             if ( $debug ) {
-                ( sprintf( 'Dopigo: Page %d returned %d products. Total collected: %d', $page, $products_count, count( $all_products ) ) );
+                error_log( sprintf( 'Dopigo: Page %d returned %d products. Total collected: %d', $page, $products_count, count( $all_products ) ) );
             }
             
             // Check if there are more products
@@ -175,7 +183,7 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
             $has_more = ! empty( $response['next'] ) && $products_count === $limit;
             
             if ( $debug ) {
-                ( sprintf( 'Dopigo: Has more products: %s (next: %s, products_count: %d, limit: %d)', 
+                error_log( sprintf( 'Dopigo: Has more products: %s (next: %s, products_count: %d, limit: %d)', 
                     $has_more ? 'yes' : 'no',
                     ! empty( $response['next'] ) ? 'yes' : 'no',
                     $products_count,
@@ -187,7 +195,7 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
             if ( $products_count < $limit ) {
                 $has_more = false;
                 if ( $debug ) {
-                    ( sprintf( 'Dopigo: Received %d products (less than limit %d), stopping pagination', $products_count, $limit ) );
+                    error_log( sprintf( 'Dopigo: Received %d products (less than limit %d), stopping pagination', $products_count, $limit ) );
                 }
             }
             
@@ -197,7 +205,7 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
         } else {
             // If results are directly in the response (not paginated)
             if ( $debug ) {
-                ( 'Dopigo: Response is not paginated, using all results' );
+                error_log( 'Dopigo: Response is not paginated, using all results' );
             }
             $all_products = is_array( $response ) ? $response : array( $response );
             $has_more = false;
@@ -205,21 +213,23 @@ function get_all_dopigo_products_paginated($auth_token = null, $debug = false) {
         
         // Safety break to prevent infinite loops
         if ( $offset > 10000 ) {
-            ( 'Dopigo: Pagination limit reached (10000 products)' );
+            if ( $debug ) {
+                error_log( 'Dopigo: Pagination limit reached (10000 products)' );
+            }
             break;
         }
         
         // Safety break if we've collected more than total count
         if ( $total_count > 0 && count( $all_products ) >= $total_count ) {
             if ( $debug ) {
-                ( sprintf( 'Dopigo: Collected all products (%d >= %d)', count( $all_products ), $total_count ) );
+                error_log( sprintf( 'Dopigo: Collected all products (%d >= %d)', count( $all_products ), $total_count ) );
             }
             break;
         }
     }
     
     if ( $debug ) {
-        ( sprintf( 'Dopigo: Pagination complete. Total products collected: %d (expected: %d)', 
+        error_log( sprintf( 'Dopigo: Pagination complete. Total products collected: %d (expected: %d)', 
             count( $all_products ), 
             $total_count > 0 ? $total_count : 'unknown'
         ) );

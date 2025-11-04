@@ -538,22 +538,28 @@ class Dopigo_Admin {
         }
 
         // Use the paginated function with debug enabled
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'dopigo.php';
+        require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/dopigo.php';
         
         $debug = defined( 'WP_DEBUG' ) && WP_DEBUG;
-        ( 'Dopigo: Starting AJAX fetch of all products with pagination...' );
+        if ( $debug ) {
+            error_log( 'Dopigo: Starting AJAX fetch of all products with pagination...' );
+        }
         
         $products = get_all_dopigo_products_paginated( $api_key, $debug );
 
         if ( $products === false ) {
-            ( 'Dopigo: Failed to fetch products from Dopigo API' );
+            if ( $debug ) {
+                error_log( 'Dopigo: Failed to fetch products from Dopigo API' );
+            }
             wp_send_json_error( array( 'message' => __( 'Failed to fetch products from Dopigo', 'woocommerce-dopigo' ) ) );
         }
 
         $count = isset( $products['count'] ) ? $products['count'] : count( $products['results'] );
         $total_count = isset( $products['total_count'] ) ? $products['total_count'] : $count;
         
-        ( sprintf( 'Dopigo: Successfully fetched %d products (expected: %d)', $count, $total_count ) );
+        if ( $debug ) {
+            error_log( sprintf( 'Dopigo: Successfully fetched %d products (expected: %d)', $count, $total_count ) );
+        }
 
         wp_send_json_success( array(
             'products' => $products,
@@ -619,9 +625,18 @@ class Dopigo_Admin {
         }
 
         $product_count = count( $products );
-        ( sprintf( 'Dopigo: Starting import of %d products...', $product_count ) );
+        
+        // Increase execution time and memory limit for import
+        @set_time_limit( 600 ); // 10 minutes
+        @ini_set( 'max_execution_time', 600 );
+        @ini_set( 'memory_limit', '512M' );
+        
+        $debug = defined( 'WP_DEBUG' ) && WP_DEBUG;
+        if ( $debug ) {
+            error_log( sprintf( 'Dopigo: Starting import of %d products...', $product_count ) );
+        }
 
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-dopigo-product-mapper.php';
+        require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-product-mapper.php';
 
         try {
             // Check if images should be skipped during manual import
@@ -632,11 +647,13 @@ class Dopigo_Admin {
             $duration = round( $end_time - $start_time, 2 );
 
             $imported_count = count( $product_ids );
-            ( sprintf( 'Dopigo: Successfully imported %d/%d products in %s seconds', 
-                $imported_count, 
-                $product_count, 
-                $duration 
-            ) );
+            if ( $debug ) {
+                error_log( sprintf( 'Dopigo: Successfully imported %d/%d products in %s seconds', 
+                    $imported_count, 
+                    $product_count, 
+                    $duration 
+                ) );
+            }
 
             // Log the sync
             $this->log_sync( 'import', 'success', $imported_count, 
@@ -656,9 +673,16 @@ class Dopigo_Admin {
             ) );
 
         } catch ( Exception $e ) {
-            ( sprintf( 'Dopigo: Import error: %s', $e->getMessage() ) );
-            $this->log_sync( 'import', 'error', 0, $e->getMessage() );
-            wp_send_json_error( array( 'message' => $e->getMessage() ) );
+            $error_message = $e->getMessage();
+            if ( $debug ) {
+                error_log( sprintf( 'Dopigo: Import error: %s', $error_message ) );
+                error_log( 'Dopigo: Import error stack trace: ' . $e->getTraceAsString() );
+            }
+            $this->log_sync( 'import', 'error', 0, $error_message );
+            wp_send_json_error( array( 
+                'message' => $error_message,
+                'error_type' => get_class( $e )
+            ) );
         }
     }
 
@@ -851,7 +875,7 @@ class Dopigo_Admin {
             wp_send_json_error( array( 'message' => __( 'Progress key missing', 'woocommerce-dopigo' ) ) );
         }
 
-        require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-dopigo-product-mapper.php';
+        require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-product-mapper.php';
         
         $progress = Dopigo_Product_Mapper::get_progress( $progress_key );
         
