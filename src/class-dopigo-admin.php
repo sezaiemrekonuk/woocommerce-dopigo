@@ -23,6 +23,7 @@ class Dopigo_Admin {
         add_action( 'wp_ajax_dopigo_get_all_products', array( $this, 'ajax_get_all_products' ) );
         add_action( 'wp_ajax_dopigo_test_connection', array( $this, 'ajax_test_connection' ) );
         add_action( 'wp_ajax_dopigo_import_products', array( $this, 'ajax_import_products' ) );
+        add_action( 'wp_ajax_dopigo_import_categories', array( $this, 'ajax_import_categories' ) );
         add_action( 'wp_ajax_dopigo_generate_token_ajax', array( $this, 'ajax_generate_token' ) );
         add_action( 'wp_ajax_dopigo_trigger_sync', array( $this, 'ajax_trigger_sync' ) );
         add_action( 'wp_ajax_dopigo_reschedule_sync', array( $this, 'ajax_reschedule_sync' ) );
@@ -139,6 +140,12 @@ class Dopigo_Admin {
             'default'           => false // Default to importing images
         ) );
 
+        register_setting( 'dopigo_settings_group', 'dopigo_xml_feed_url', array(
+            'type'              => 'string',
+            'sanitize_callback' => 'esc_url_raw',
+            'default'           => ''
+        ) );
+
         // Add settings sections
         add_settings_section(
             'dopigo_auth_section',
@@ -202,6 +209,14 @@ class Dopigo_Admin {
             'dopigo-settings',
             'dopigo_sync_section'
         );
+
+        add_settings_field(
+            'dopigo_xml_feed_url',
+            __( 'Dopigo XML Feed URL', 'woocommerce-dopigo' ),
+            array( $this, 'render_xml_feed_url_field' ),
+            'dopigo-settings',
+            'dopigo_sync_section'
+        );
     }
 
     /**
@@ -249,6 +264,11 @@ class Dopigo_Admin {
                 'success'       => __( 'Success!', 'woocommerce-dopigo' ),
                 'error'         => __( 'Error occurred', 'woocommerce-dopigo' ),
                 'confirm'       => __( 'Are you sure you want to import all products?', 'woocommerce-dopigo' ),
+                'fetchingCategories' => __( 'Fetching categories...', 'woocommerce-dopigo' ),
+                'importingCategories' => __( 'Importing categories...', 'woocommerce-dopigo' ),
+                'importCategoriesSuccess' => __( '✓ Successfully created %created% new categories and updated %updated% existing categories.', 'woocommerce-dopigo' ),
+                'pendingCategories' => __( 'The following Dopigo category IDs still need mapping: %pending%. Please import categories again once they are available.', 'woocommerce-dopigo' ),
+                'readFileError' => __( 'Could not read the selected file. Please try again.', 'woocommerce-dopigo' ),
             )
         ) );
     }
@@ -405,6 +425,24 @@ class Dopigo_Admin {
         </label>
         <p class="description">
             <?php _e( 'When enabled, images will be skipped during sync to speed up the process. Image URLs will be stored in product meta and can be downloaded later. <strong>Uncheck this to import images with your products.</strong>', 'woocommerce-dopigo' ); ?>
+        </p>
+        <?php
+    }
+
+    /**
+     * Render XML feed URL field
+     */
+    public function render_xml_feed_url_field() {
+        $feed_url = get_option( 'dopigo_xml_feed_url', '' );
+        ?>
+        <input type="url"
+               name="dopigo_xml_feed_url"
+               id="dopigo_xml_feed_url"
+               value="<?php echo esc_attr( $feed_url ); ?>"
+               class="regular-text"
+               placeholder="<?php esc_attr_e( 'https://itbox.dopigo.com/api/products/xml/?page=1&page_size=100', 'woocommerce-dopigo' ); ?>" />
+        <p class="description">
+            <?php _e( 'This feed is used to fetch categories automatically during category import. Leave blank to upload XML files manually.', 'woocommerce-dopigo' ); ?>
         </p>
         <?php
     }
@@ -637,6 +675,7 @@ class Dopigo_Admin {
         }
 
         require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-product-mapper.php';
+        require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-category-mapper.php';
 
         try {
             // Check if images should be skipped during manual import
@@ -669,7 +708,8 @@ class Dopigo_Admin {
                 'product_ids' => $product_ids,
                 'imported'    => $imported_count,
                 'total'       => $product_count,
-                'duration'    => $duration
+                'duration'    => $duration,
+                'pending_categories' => Dopigo_Category_Mapper::get_pending_categories(),
             ) );
 
         } catch ( Exception $e ) {
@@ -715,6 +755,142 @@ class Dopigo_Admin {
             'token'   => $token,
             'message' => __( 'Token generated successfully!', 'woocommerce-dopigo' )
         ) );
+    }
+
+    /**
+     * AJAX: Import categories from XML
+     */
+    public function ajax_import_categories() {
+        check_ajax_referer( 'dopigo_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Permission denied', 'woocommerce-dopigo' ) ) );
+        }
+
+        $raw_xml    = isset( $_POST['xml'] ) ? wp_unslash( $_POST['xml'] ) : '';
+        $use_feed   = ! empty( $_POST['use_feed'] );
+        $force_fetch = ! empty( $_POST['force_fetch'] );
+
+        if ( empty( $raw_xml ) ) {
+            if ( $use_feed ) {
+                $raw_xml = $this->download_category_xml( $force_fetch );
+
+                if ( is_wp_error( $raw_xml ) ) {
+                    wp_send_json_error( array( 'message' => $raw_xml->get_error_message() ) );
+                }
+            } else {
+                wp_send_json_error( array( 'message' => __( 'No XML provided and feed URL not requested.', 'woocommerce-dopigo' ) ) );
+            }
+        }
+
+        libxml_use_internal_errors( true );
+        $xml = simplexml_load_string( $raw_xml, 'SimpleXMLElement', LIBXML_NOCDATA );
+
+        if ( false === $xml ) {
+            $errors = array();
+            foreach ( libxml_get_errors() as $error ) {
+                $errors[] = trim( $error->message );
+            }
+            libxml_clear_errors();
+            wp_send_json_error( array( 'message' => __( 'Failed to parse XML.', 'woocommerce-dopigo' ), 'details' => $errors ) );
+        }
+
+        $created = 0;
+        $updated = 0;
+        $skipped = array();
+
+        foreach ( $xml->xpath( '//list-item' ) as $item ) {
+            $category_node = isset( $item->category ) ? $item->category : null;
+            if ( ! $category_node ) {
+                continue;
+            }
+
+            $dopigo_id = isset( $category_node->id ) ? intval( $category_node->id ) : 0;
+            if ( $dopigo_id <= 0 ) {
+                continue;
+            }
+
+            $full_path = isset( $item->full_category_path ) ? trim( (string) $item->full_category_path ) : '';
+
+            if ( empty( $full_path ) ) {
+                $segments = array();
+                if ( isset( $category_node->root->name ) ) {
+                    $segments[] = trim( (string) $category_node->root->name );
+                }
+                if ( isset( $category_node->name ) ) {
+                    $segments[] = trim( (string) $category_node->name );
+                }
+                $full_path = implode( ' > ', array_filter( $segments ) );
+            }
+
+            if ( empty( $full_path ) ) {
+                Dopigo_Category_Mapper::add_pending_category( $dopigo_id );
+                $skipped[] = $dopigo_id;
+                continue;
+            }
+
+            $existing_id = Dopigo_Category_Mapper::get_wc_category_id( $dopigo_id );
+            $term_id     = Dopigo_Category_Mapper::ensure_category_from_path( $dopigo_id, $full_path );
+
+            if ( $term_id ) {
+                if ( $existing_id ) {
+                    $updated++;
+                } else {
+                    $created++;
+                }
+            } else {
+                Dopigo_Category_Mapper::add_pending_category( $dopigo_id );
+                $skipped[] = $dopigo_id;
+            }
+        }
+
+        $pending = Dopigo_Category_Mapper::get_pending_categories();
+
+        wp_send_json_success( array(
+            'created' => $created,
+            'updated' => $updated,
+            'pending' => $pending,
+            'skipped' => $skipped,
+        ) );
+    }
+
+    /**
+     * Download category XML from configured feed URL.
+     *
+     * @param bool $force_fetch Optional flag (currently unused, reserved for caching strategies).
+     *
+     * @return string|WP_Error
+     */
+    private function download_category_xml( $force_fetch = false ) {
+        $feed_url = get_option( 'dopigo_xml_feed_url', '' );
+
+        if ( empty( $feed_url ) ) {
+            return new WP_Error( 'dopigo_missing_feed', __( 'No XML feed URL configured. Please set it in the Dopigo settings.', 'woocommerce-dopigo' ) );
+        }
+
+        $response = wp_remote_get( $feed_url, array(
+            'timeout' => 30,
+            'headers' => array(
+                'Accept' => 'application/xml,text/xml;q=0.9,*/*;q=0.8',
+            ),
+        ) );
+
+        if ( is_wp_error( $response ) ) {
+            return $response;
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( 200 !== $code ) {
+            return new WP_Error( 'dopigo_bad_feed_status', sprintf( __( 'Failed to fetch feed. HTTP status: %d', 'woocommerce-dopigo' ), $code ) );
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+
+        if ( empty( $body ) ) {
+            return new WP_Error( 'dopigo_empty_feed', __( 'Feed returned empty response.', 'woocommerce-dopigo' ) );
+        }
+
+        return $body;
     }
 
     /**

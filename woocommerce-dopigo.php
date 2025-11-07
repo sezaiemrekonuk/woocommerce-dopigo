@@ -58,6 +58,7 @@ function woocommerce_dopigo_init() {
     // Include core files
     require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/dopigo.php';
     require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-product-mapper.php';
+    require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-category-mapper.php';
     
     // Include admin files only in admin
 if ( is_admin() ) {

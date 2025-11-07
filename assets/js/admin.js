@@ -187,7 +187,11 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    alert(response.data.message);
+                    var message = response.data.message;
+                    if (response.data.pending_categories && response.data.pending_categories.length) {
+                        message += '\n\n' + dopigoAdmin.strings.pendingCategories.replace('%pending%', response.data.pending_categories.join(', '));
+                    }
+                    alert(message);
                     location.reload();
                 } else {
                     alert('Import failed: ' + response.data.message);
@@ -243,6 +247,117 @@ jQuery(document).ready(function($) {
         $('#select-all-products').on('change', function() {
             $('.dopigo-product-select').prop('checked', $(this).prop('checked'));
         });
+    }
+
+    /**
+     * Import Categories Button
+     */
+    $('#dopigo-import-categories').on('click', function(e) {
+        e.preventDefault();
+
+        var $button = $(this);
+        var $result = $('#dopigo-categories-result');
+        var fileInput = document.getElementById('dopigo-category-xml');
+        var file = fileInput ? fileInput.files[0] : null;
+
+        $result.html('');
+        setButtonLoading($button, dopigoAdmin.strings.importingCategories);
+
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                submitCategoryImport({ xml: event.target.result }, $button, $result);
+            };
+            reader.onerror = function() {
+                resetButton($button);
+                $result.html('<div class="notice notice-error"><p>' + dopigoAdmin.strings.readFileError + '</p></div>');
+            };
+            reader.readAsText(file);
+        } else {
+            submitCategoryImport({ use_feed: true }, $button, $result);
+        }
+    });
+
+    /**
+     * Fetch Categories from Feed Button
+     */
+    $('#dopigo-fetch-category-xml').on('click', function(e) {
+        e.preventDefault();
+
+        var $button = $(this);
+        var $result = $('#dopigo-categories-result');
+
+        $result.html('');
+        setButtonLoading($button, dopigoAdmin.strings.fetchingCategories);
+
+        submitCategoryImport({ use_feed: true, force_fetch: true }, $button, $result, function() {
+            resetButton($('#dopigo-import-categories'));
+        });
+    });
+
+    function submitCategoryImport(payload, $button, $result, callback) {
+        $.ajax({
+            url: dopigoAdmin.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'dopigo_import_categories',
+                nonce: dopigoAdmin.nonce,
+                xml: payload.xml || '',
+                use_feed: payload.use_feed ? 1 : 0,
+                force_fetch: payload.force_fetch ? 1 : 0
+            },
+            success: function(response) {
+                if (response.success) {
+                    var data = response.data || {};
+                    var created = data.created || 0;
+                    var updated = data.updated || 0;
+                    var pending = data.pending || [];
+                    var message = dopigoAdmin.strings.importCategoriesSuccess
+                        .replace('%created%', created)
+                        .replace('%updated%', updated);
+
+                    var noticeClass = 'notice-success';
+                    if (pending.length) {
+                        noticeClass = 'notice-warning';
+                        message += '<br>' + dopigoAdmin.strings.pendingCategories.replace('%pending%', pending.join(', '));
+                    }
+
+                    $result.html('<div class="notice ' + noticeClass + '"><p>' + message + '</p></div>');
+                } else {
+                    var errorMsg = response.data && response.data.message ? response.data.message : dopigoAdmin.strings.error;
+                    $result.html('<div class="notice notice-error"><p>' + errorMsg + '</p></div>');
+                }
+            },
+            error: function(xhr, status, error) {
+                $result.html('<div class="notice notice-error"><p>' + (error || dopigoAdmin.strings.error) + '</p></div>');
+            },
+            complete: function() {
+                resetButton($button);
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            }
+        });
+    }
+
+    function setButtonLoading($button, text) {
+        if (!$button || !$button.length) {
+            return;
+        }
+        $button.data('original-html', $button.html());
+        $button.prop('disabled', true).html('<span class="spinner is-active" style="float: none;"></span> ' + text);
+    }
+
+    function resetButton($button) {
+        if (!$button || !$button.length) {
+            return;
+        }
+        var original = $button.data('original-html');
+        $button.prop('disabled', false);
+        if (original) {
+            $button.html(original);
+            $button.removeData('original-html');
+        }
     }
 
     /**

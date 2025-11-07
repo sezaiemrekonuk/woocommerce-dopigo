@@ -635,12 +635,18 @@ class Dopigo_Product_Mapper {
      * @return int|null WooCommerce category ID
      */
     private static function map_dopigo_category_to_woocommerce( $dopigo_category_id ) {
-        // Check if mapping exists in options
-        $category_map = get_option( 'dopigo_category_map', array() );
-        
-        if ( isset( $category_map[ $dopigo_category_id ] ) ) {
-            return $category_map[ $dopigo_category_id ];
+        if ( ! class_exists( 'Dopigo_Category_Mapper' ) ) {
+            require_once WOOCOMMERCE_DOPIGO_PLUGIN_DIR . 'src/class-dopigo-category-mapper.php';
         }
+
+        $term_id = Dopigo_Category_Mapper::get_wc_category_id( $dopigo_category_id );
+
+        if ( $term_id ) {
+            Dopigo_Category_Mapper::remove_pending_category( $dopigo_category_id );
+            return $term_id;
+        }
+
+        Dopigo_Category_Mapper::add_pending_category( $dopigo_category_id );
 
         return null;
     }
